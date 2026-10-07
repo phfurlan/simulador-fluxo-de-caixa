@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simulador de fluxo de caixa: Confecção da Dona Maria</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #EDF2F8; --surface: #FFFFFF; --surface-2: #F5F8FC; --ink: #12263F; --muted: #55677C;
+  --line: #D3DEEA; --primary: #0A6FC2; --on-primary: #FFFFFF;
+  --pos: #137A4B; --pos-bg: #DCF2E7; --neg: #BE352E; --neg-bg: #FBE2E0;
+  --mix: #8A5A00; --mix-bg: #FFF0C7; --neu: #4A5B70; --neu-bg: #E4EAF1;
+  --chg: #FFE9A6; --ghost: #7D8DA1; --shadow: 0 1px 2px rgba(18,38,63,.06), 0 6px 20px rgba(18,38,63,.06);
+  --radius: 14px;
+  --f-head: 'Bricolage Grotesque', 'Trebuchet MS', system-ui, sans-serif;
+  --f-body: 'Figtree', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D1827; --surface: #152538; --surface-2: #1B2F46; --ink: #E7EFF8; --muted: #9FB2C7;
+    --line: #2B4057; --primary: #55A8EE; --on-primary: #08203A;
+    --pos: #52C98F; --pos-bg: #133A29; --neg: #FF918A; --neg-bg: #4A2422;
+    --mix: #F3C65B; --mix-bg: #43360F; --neu: #B4C4D6; --neu-bg: #263A50;
+    --chg: #5C4A10; --ghost: #8FA3B8; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D1827; --surface: #152538; --surface-2: #1B2F46; --ink: #E7EFF8; --muted: #9FB2C7;
+  --line: #2B4057; --primary: #55A8EE; --on-primary: #08203A;
+  --pos: #52C98F; --pos-bg: #133A29; --neg: #FF918A; --neg-bg: #4A2422;
+  --mix: #F3C65B; --mix-bg: #43360F; --neu: #B4C4D6; --neu-bg: #263A50;
+  --chg: #5C4A10; --ghost: #8FA3B8; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+:root { box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+html { scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 12px); }
+*, *::before, *::after { box-sizing: inherit; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.5; -webkit-text-size-adjust: 100%; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 18px 16px 40px; }
+h1, h2, h3 { font-family: var(--f-head); line-height: 1.15; margin: 0; letter-spacing: -0.01em; }
+p { margin: 0; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.top h1 { font-size: clamp(1.5rem, 4.5vw, 2.1rem); font-weight: 800; }
+.top .sub { color: var(--muted); font-size: .95rem; }
+
+.grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.panel { order: 1; } .card { order: 2; } .tabela { order: 3; }
+@media (min-width: 900px) {
+  .grid { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); align-items: start; }
+  .card { order: 1; grid-column: 1; grid-row: 1; }
+  .panel { order: 2; grid-column: 2; grid-row: 1; position: sticky; top: 12px; }
+  .tabela { grid-column: 1 / -1; grid-row: 2; }
+}
+.surface { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+
+/* Painel do caixa */
+.panel { padding: 16px; }
+.kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.kpi { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+.kpi .k { font-size: .82rem; color: var(--muted); }
+.kpi .v { font-family: var(--f-head); font-weight: 800; font-size: 1.6rem; line-height: 1.1; margin-top: 2px; }
+.kpi .s { font-size: .8rem; color: var(--muted); margin-top: 2px; }
+.pos { color: var(--pos); } .neg { color: var(--neg); }
+.status { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 10px; font-weight: 700; font-size: .95rem; margin-bottom: 8px; }
+.status.ok { background: var(--pos-bg); color: var(--pos); } .status.no { background: var(--neg-bg); color: var(--neg); }
+.chart { width: 100%; height: auto; display: block; }
+.chart .zero { stroke: var(--line); stroke-width: 1.5; }
+.chart .ghost { fill: none; stroke: var(--ghost); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.chart .bpos { fill: var(--pos); } .chart .bneg { fill: var(--neg); }
+.chart .val { font: 700 13px var(--f-body); fill: var(--ink); text-anchor: middle; }
+.chart .val.n { fill: var(--neg); }
+.chart .mes { font: 600 12.5px var(--f-body); fill: var(--muted); text-anchor: middle; }
+.bar { animation: grow .45s ease-out; }
+@keyframes grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); margin-top: 2px; }
+.legend i { display: inline-block; width: 12px; height: 12px; vertical-align: -1px; margin-right: 5px; border-radius: 2px; }
+.legend .l1 { background: var(--pos); } .legend .l2 { border: 1.5px dashed var(--ghost); }
+.avisos { margin-top: 10px; display: grid; gap: 6px; }
+.aviso { font-size: .85rem; border-left: 4px solid var(--mix); background: var(--mix-bg); color: var(--ink); padding: 6px 10px; border-radius: 0 8px 8px 0; }
+.aviso b { font-weight: 800; }
+
+/* Cartão de perguntas */
+.card { padding: 20px 18px; }
+.steps { display: flex; gap: 4px; margin-bottom: 14px; }
+.steps span { flex: 1; height: 6px; border-radius: 3px; background: var(--line); }
+.steps span.done { background: var(--primary); } .steps span.now { background: var(--primary); outline: 2px solid var(--primary); outline-offset: 2px; }
+.card h2 { font-size: clamp(1.25rem, 3.6vw, 1.6rem); font-weight: 800; margin-bottom: 8px; }
+.card .lead { color: var(--muted); font-size: .88rem; margin-bottom: 8px; }
+.card .sit { margin-bottom: 12px; max-width: 62ch; }
+.card .q { font-weight: 800; font-size: 1.08rem; margin: 14px 0 10px; }
+.evento { border-left: 5px solid var(--neg); background: var(--neg-bg); padding: 10px 14px; border-radius: 0 10px 10px 0; margin-bottom: 12px; }
+.evento b { display: block; color: var(--neg); margin-bottom: 2px; }
+.opts { display: grid; gap: 8px; }
+.opt { text-align: left; background: var(--surface-2); border: 2px solid var(--line); border-radius: 12px; padding: 12px 14px; min-height: 48px; transition: border-color .15s, background .15s; }
+.opt:hover { border-color: var(--primary); }
+.opt[aria-pressed="true"] { border-color: var(--primary); background: var(--surface); box-shadow: inset 0 0 0 1px var(--primary); }
+.opt .t { font-weight: 600; }
+.resultado { margin-top: 14px; border-top: 2px solid var(--line); padding-top: 14px; }
+.chip { display: inline-block; font-weight: 800; font-size: .92rem; padding: 4px 12px; border-radius: 999px; margin-bottom: 8px; }
+.chip.good { background: var(--pos-bg); color: var(--pos); } .chip.bad { background: var(--neg-bg); color: var(--neg); }
+.chip.mixed { background: var(--mix-bg); color: var(--mix); } .chip.neutral { background: var(--neu-bg); color: var(--neu); }
+.nums { display: grid; gap: 4px; margin: 4px 0 10px; font-size: .95rem; }
+.nums div b { font-weight: 800; }
+.premissa { font-size: .88rem; color: var(--muted); margin-bottom: 8px; }
+.porque { margin-bottom: 8px; max-width: 62ch; }
+.apostila { font-size: .86rem; color: var(--muted); background: var(--surface-2); border-radius: 8px; padding: 8px 10px; margin-bottom: 14px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 10px 22px; border-radius: 999px; border: 2px solid var(--primary); background: var(--primary); color: var(--on-primary); font-weight: 800; }
+.btn.sec { background: transparent; color: var(--primary); }
+.btn:hover { filter: brightness(1.06); }
+.btnrow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+
+.topbar { margin: -6px 0 4px -6px; }
+.back { background: none; border: none; color: var(--primary); font-weight: 700; padding: 8px 6px; min-height: 40px; border-radius: 8px; }
+.back:hover { text-decoration: underline; }
+
+/* Final */
+.final .big { font-size: 1.05rem; margin-bottom: 12px; }
+.decs { display: grid; gap: 8px; margin: 12px 0; }
+.dec { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+.dec .tt { font-weight: 700; } .dec .oo { grid-column: 1; font-size: .9rem; color: var(--muted); }
+.dec .dd { font-weight: 800; text-align: right; grid-column: 2; grid-row: 1; }
+.dec .gg { grid-column: 2; grid-row: 2; justify-self: end; }
+.dec .gg button { background: none; border: none; color: var(--primary); font-weight: 700; padding: 6px 2px; text-decoration: underline; }
+.licoes { margin: 10px 0 14px; padding-left: 20px; display: grid; gap: 6px; max-width: 62ch; }
+
+/* Tabela */
+.tabela { padding: 14px 14px 10px; }
+.tabela h3 { font-size: 1.15rem; margin-bottom: 8px; }
+.tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; border: 1px solid var(--line); }
+table.fluxo { border-collapse: collapse; width: 100%; min-width: 660px; font-size: .92rem; }
+.fluxo th, .fluxo td { padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.fluxo thead th { background: var(--primary); color: var(--on-primary); font-weight: 700; text-align: right; }
+.fluxo thead th:first-child, .fluxo td:first-child { text-align: left; position: sticky; left: 0; z-index: 1; }
+.fluxo td:first-child { background: var(--surface); font-weight: 500; }
+.fluxo tr.sec th { background: var(--surface-2); color: var(--ink); text-align: left; font-family: var(--f-head); font-size: .95rem; }
+.fluxo td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.fluxo td.num.neg { color: var(--neg); font-weight: 700; }
+.fluxo tr.tot td { font-weight: 800; background: var(--surface-2); }
+.fluxo tr.tot td:first-child { background: var(--surface-2); }
+.fluxo tr.fim td { border-top: 2px solid var(--ink); font-weight: 800; }
+.fluxo td.chg { background: var(--chg); animation: flash 1.3s ease-out; }
+@keyframes flash { from { box-shadow: inset 0 0 0 100px rgba(255,190,0,.55); } to { box-shadow: inset 0 0 0 100px rgba(255,190,0,0); } }
+.fluxo td.hl { color: var(--muted); }
+.nota { color: var(--muted); font-size: .8rem; margin-top: 8px; }
+.nota .sw { display: inline-block; width: 12px; height: 12px; background: var(--chg); border: 1px solid var(--line); vertical-align: -1px; margin-right: 4px; border-radius: 2px; }
+.rodape { color: var(--muted); font-size: .8rem; margin-top: 18px; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .bar, .fluxo td.chg { animation: none; } .opt { transition: none; } }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Confecção da Dona Maria</h1>
+    <p class="sub">Simulador de fluxo de caixa</p>
+  </header>
+  <main class="grid">
+    <section class="card surface" id="card" aria-label="Situação e perguntas"></section>
+    <section class="panel surface" id="painel" aria-label="Painel do caixa"></section>
+    <section class="tabela surface" id="tabela" aria-label="Tabela do fluxo de caixa"></section>
+  </main>
+  <p class="rodape">Simulação didática em reais, com valores arredondados. As premissas de cada opção são hipóteses para discussão em sala.</p>
+</div>
+<script>
+// ===== MOTOR DE CÁLCULO: reproduz a lógica da planilha "Fluxo 1 gabarito" =====
+var MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril'];
+
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+function baseState() {
+  return {
+    priceCam: [15, 15, 15, 15],
+    priceUni: [5, 5, 5, 5],
+    qtyCam: [500, 500, 800, 800],
+    qtyUni: [3000, 3000, 500, 500],
+    volCam: [1, 1, 1, 1],
+    volUni: [1, 1, 1, 1],
+    terms: [[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0]], // como cada mês de venda é recebido (mês 0, +1, +2, +3)
+    recMult: [1, 1, 1, 1],        // multiplicador dos recebimentos (taxas)
+    entradaAdj: [0, 0, 0, 0],     // atrasos e descontos de clientes
+    outrasEntradas: [0, 0, 0, 0], // empréstimos e aportes
+    mp: [5000, 5000, 7000, 7000], // compras de matéria-prima
+    mpDefer: false,               // paga a matéria-prima 30 dias depois
+    fixed: [10000, 10000, 10000, 10000],
+    outrasSaidas: [0, 0, 0, 0],   // retiradas dos sócios e parcelas
+    comRate: [0.2, 0.2, 0.2, 0.2], // comissões e impostos por mês
+    pedidos: [],                  // pedidos grandes: {m, qtd, preco, terms}
+    prevFat: 20000,               // faturamento do mês anterior a janeiro
+    saldoIni: 5000,
+    receberDepois: 0,             // valores a receber depois de abril (fora do período)
+    pagarDepois: 0                // valores a pagar depois de abril (fora do período)
+  };
+}
+
+function compute(s) {
+  var N = 4, i, k, m;
+  var qCam = [], qUni = [], fatCam = [], fatUni = [];
+  for (m = 0; m < N; m++) {
+    qCam[m] = Math.round(s.qtyCam[m] * s.volCam[m]);
+    qUni[m] = Math.round(s.qtyUni[m] * s.volUni[m]);
+    fatCam[m] = Math.round(qCam[m] * s.priceCam[m]);
+    fatUni[m] = Math.round(qUni[m] * s.priceUni[m]);
+  }
+  var fatCamRec = fatCam.slice(), fatUniRec = fatUni.slice(); // base para os recebimentos normais
+  var pedRec = [0,0,0,0], pedDepois = 0;
+  s.pedidos.forEach(function (p) {
+    qUni[p.m] += p.qtd; fatUni[p.m] += Math.round(p.qtd * p.preco);
+    for (var kk = 0; kk < 4; kk++) {
+      var tt = p.terms[kk]; if (!tt) continue;
+      var vv = Math.round(p.qtd * p.preco * tt);
+      if (p.m + kk < 4) pedRec[p.m + kk] += vv; else pedDepois += vv;
+    }
+  });
+  var recCam = [0,0,0,0], recUni = [0,0,0,0], receberDepois = s.receberDepois + pedDepois;
+  for (i = 0; i < N; i++) {
+    for (k = 0; k < N; k++) {
+      var t = s.terms[i][k];
+      if (!t) continue;
+      var vC = Math.round(fatCamRec[i] * t * s.recMult[i]);
+      var vU = Math.round(fatUniRec[i] * t * s.recMult[i]);
+      if (i + k < N) { recCam[i + k] += vC; recUni[i + k] += vU; }
+      else { receberDepois += vC + vU; }
+    }
+  }
+  for (m = 0; m < N; m++) recUni[m] += pedRec[m];
+  var mpPago = [], pagarDepois = s.pagarDepois;
+  for (m = 0; m < N; m++) {
+    if (s.mpDefer) mpPago[m] = m === 0 ? 0 : s.mp[m - 1];
+    else mpPago[m] = s.mp[m];
+  }
+  if (s.mpDefer) pagarDepois += s.mp[N - 1];
+
+  var meses = [], saldo = s.saldoIni, menor = Infinity, menorMes = 0, negativos = 0, prevFat = s.prevFat;
+  for (m = 0; m < N; m++) {
+    var fat = fatCam[m] + fatUni[m];
+    var totalEnt = recCam[m] + recUni[m] + s.entradaAdj[m] + s.outrasEntradas[m];
+    var com = Math.round(s.comRate[m] * prevFat);
+    var totalSai = mpPago[m] + com + s.fixed[m] + s.outrasSaidas[m];
+    var liquido = totalEnt - totalSai;
+    var ini = saldo;
+    var fim = ini + liquido;
+    meses.push({
+      qCam: qCam[m], qUni: qUni[m], fat: fat,
+      recCam: recCam[m], recUni: recUni[m], adj: s.entradaAdj[m], outEnt: s.outrasEntradas[m],
+      totalEnt: totalEnt,
+      mp: mpPago[m], com: com, fixo: s.fixed[m], outSai: s.outrasSaidas[m],
+      totalSai: totalSai, liquido: liquido, ini: ini, fim: fim
+    });
+    if (fim < menor) { menor = fim; menorMes = m; }
+    if (fim < 0) negativos++;
+    saldo = fim;
+    prevFat = fat;
+  }
+  return {
+    meses: meses, saldoAbril: meses[N - 1].fim, menor: menor, menorMes: menorMes,
+    negativos: negativos, receberDepois: receberDepois, pagarDepois: pagarDepois
+  };
+}
+
+// ===== SITUAÇÕES, PERGUNTAS E OPÇÕES =====
+// Cada opção muda o "estado" da empresa; o motor recalcula o fluxo de caixa.
+function brl(v) {
+  var neg = v < 0, a = Math.abs(Math.round(v));
+  var s = a.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return (neg ? '−' : '') + 'R$ ' + s;
+}
+function each(arr, idxs, fn) { idxs.forEach(function (i) { arr[i] = fn(arr[i]); }); }
+
+var ROUNDS = [
+  // 1 ---------------------------------------------------------------
+  {
+    id: 'diagnostico', titulo: 'Diagnóstico', tipo: 'diagnostico',
+    situacao: function () {
+      return 'Olhe a tabela de fluxo de caixa. O caixa cresce em janeiro e fevereiro, mas despenca em março e fica negativo em abril.';
+    },
+    pergunta: 'Antes de agir, descubra a causa. O que explica a piora do caixa em março e abril?',
+    apostila: 'Primeiro analise as causas dos saldos, depois planeje as estratégias para reverter os problemas.',
+    opcoes: [
+      { id: 'a', texto: 'Os custos fixos de R$ 10.000 são altos demais.', certa: false,
+        porque: 'Eles pesam, mas são iguais todos os meses, então não explicam por que o caixa piora justamente em março. Continuam na lista de ajustes possíveis.' },
+      { id: 'b', texto: 'As entradas caem de R$ 22.500 para R$ 14.500 em março, mas as saídas continuam perto de R$ 20 mil.', certa: true,
+        porque: 'Essa é a causa principal. As vendas de uniformes despencam (de 3.000 para 500 unidades) e as entradas caem R$ 8.000. As saídas não acompanham: a matéria-prima sobe e a comissão de março ainda é calculada sobre as vendas altas de fevereiro.' },
+      { id: 'c', texto: 'A comissão e os impostos de 20% são altos demais.', certa: false,
+        porque: '20% é bastante, mas a comissão acompanha as vendas. Ela só pesa em março porque é calculada sobre o mês anterior, quando as vendas ainda eram altas.' },
+      { id: 'd', texto: 'O saldo inicial de R$ 5.000 é pequeno demais.', certa: false,
+        porque: 'Ele ajuda, mas o problema aparece mesmo com R$ 11.500 em caixa no fim de fevereiro. O que mudou foi o ritmo das entradas, não o ponto de partida.' }
+    ]
+  },
+  // 2 ---------------------------------------------------------------
+  {
+    id: 'preco', titulo: 'Preço de venda',
+    situacao: function () {
+      return 'Agora é hora de agir. As entradas estão baixas, e o preço de venda é uma das alavancas mais rápidas: hoje a camiseta custa R$ 15 e o uniforme R$ 5.';
+    },
+    pergunta: 'O que você faz com os preços?',
+    apostila: 'Definir metas de vendas e analisar a capacidade de pagamento a partir das projeções de caixa.',
+    opcoes: [
+      { id: 'a', texto: 'Subir R$ 1 em cada produto (camiseta a R$ 16 e uniforme a R$ 6).',
+        premissa: 'Os clientes aceitam o novo preço e as quantidades vendidas continuam as mesmas.',
+        porque: 'Um pequeno reajuste em todos os produtos muda o caixa de todos os meses. Com 3.000 uniformes vendidos, cada R$ 1 a mais vale R$ 3.000 por mês. Na vida real, teste o novo preço aos poucos e acompanhe as vendas.',
+        aplicar: function (s) { s.priceCam = [16,16,16,16]; s.priceUni = [6,6,6,6]; } },
+      { id: 'b', texto: 'Subir R$ 1 só nas camisetas.',
+        premissa: 'Os clientes aceitam o novo preço e as quantidades continuam as mesmas.',
+        porque: 'Ajuda, mas só em parte: o reajuste atinge um dos dois produtos. Compare com a opção de reajustar os dois.',
+        aplicar: function (s) { s.priceCam = [16,16,16,16]; } },
+      { id: 'c', texto: 'Subir R$ 3 nas camisetas e R$ 2 nos uniformes.',
+        premissa: 'Os preços ficam 20% e 40% mais altos, e os clientes compram 30% menos.',
+        porque: 'Preço alto demais afasta clientes. O que entra com o preço novo não compensa as vendas perdidas.',
+        aplicar: function (s) {
+          s.priceCam = [18,18,18,18]; s.priceUni = [7,7,7,7];
+          s.volCam = s.volCam.map(function (v) { return v * 0.7; });
+          s.volUni = s.volUni.map(function (v) { return v * 0.7; });
+        } },
+      { id: 'd', texto: 'Baixar o uniforme para R$ 4 para vender 20% a mais.',
+        premissa: 'Os clientes compram 20% mais uniformes.',
+        porque: 'Vender mais barato parece atraente, mas a conta não fecha: 20% mais unidades não cobrem a queda de 20% no preço. Entra menos dinheiro mesmo vendendo mais. Vender mais nem sempre significa ter mais caixa.',
+        aplicar: function (s) { s.priceUni = [4,4,4,4]; s.volUni = s.volUni.map(function (v) { return v * 1.2; }); } }
+    ]
+  },
+  // 3 ---------------------------------------------------------------
+  {
+    id: 'fornecedor', titulo: 'Fornecedor de matéria-prima',
+    situacao: function () {
+      return 'A matéria-prima é a maior saída depois dos custos fixos: R$ 24.000 em quatro meses. O fornecedor te procura com propostas.';
+    },
+    pergunta: 'Como você negocia?',
+    apostila: 'Negociar com fornecedores e instituições financeiras; cuidado com estoques altos e de baixo giro.',
+    opcoes: [
+      { id: 'a', texto: 'Pedir 10% de desconto em troca de comprar sempre dele.',
+        premissa: 'O fornecedor aceita o desconto e as compras continuam nos mesmos meses.',
+        porque: 'Reduzir o custo da matéria-prima melhora o caixa em todos os meses, sem depender de vendas.',
+        aplicar: function (s) { s.mp = s.mp.map(function (v) { return v * 0.9; }); } },
+      { id: 'b', texto: 'Pedir 30 dias para pagar cada compra.',
+        premissa: 'Você paga cada compra um mês depois, sem juros.',
+        porque: 'Dá fôlego: a primeira conta só vence em fevereiro. Mas a dívida não some, só muda de mês: a compra de abril será paga em maio. Olhe o aviso "A pagar depois de abril" no painel.',
+        aplicar: function (s) { s.mpDefer = true; } },
+      { id: 'c', texto: 'Comprar toda a matéria-prima de uma vez em janeiro, com 10% de desconto.',
+        premissa: 'Você paga tudo em janeiro (R$ 21.600) e guarda a matéria-prima em estoque.',
+        porque: 'O desconto é bom, mas o dinheiro sai todo de uma vez, muito antes de virar venda. Estoque alto deixa o capital de giro parado.',
+        aplicar: function (s) {
+          var tot = s.mp.reduce(function (a, b) { return a + b; }, 0);
+          s.mp = [Math.round(tot * 0.9), 0, 0, 0];
+        } },
+      { id: 'd', texto: 'Manter como está.',
+        porque: 'Sem mudança, o caixa depende só das outras decisões. Não mexer pode ser uma escolha, mas lembre que o fornecedor também é negociável.',
+        aplicar: function () {} }
+    ]
+  },
+  // 4 ---------------------------------------------------------------
+  {
+    id: 'fixos', titulo: 'Custos fixos',
+    situacao: function () {
+      return 'Os custos fixos são R$ 10.000 por mês (aluguel, energia, internet, funcionários). Eles não diminuem quando as vendas caem.';
+    },
+    pergunta: 'O que você faz?',
+    apostila: 'Política salarial e despesas operacionais superiores às receitas afetam o fluxo de caixa.',
+    opcoes: [
+      { id: 'a', texto: 'Renegociar contratos e cortar 10% (R$ 1.000 por mês).',
+        premissa: 'O corte não afeta as vendas.',
+        porque: 'Um corte moderado, em contratos e desperdícios, melhora o caixa todo mês sem atrapalhar a operação. Pequenos cortes recorrentes somam.',
+        aplicar: function (s) { s.fixed = s.fixed.map(function (v) { return v - 1000; }); } },
+      { id: 'b', texto: 'Cortar 30% (R$ 3.000 por mês), reduzindo equipe e horário de funcionamento.',
+        premissa: 'Com menos equipe e horário, as vendas caem 15%.',
+        porque: 'Cortar fundo economiza, mas também reduz a capacidade de vender. Compare a economia nos custos com as vendas perdidas: o painel mostra o saldo líquido.',
+        aplicar: function (s) {
+          s.fixed = s.fixed.map(function (v) { return v - 3000; });
+          s.volCam = s.volCam.map(function (v) { return v * 0.85; });
+          s.volUni = s.volUni.map(function (v) { return v * 0.85; });
+        } },
+      { id: 'c', texto: 'Contratar mais um vendedor (R$ 2.000 por mês).',
+        premissa: 'O vendedor aumenta as vendas em 10%.',
+        porque: 'Vender mais exige gastar antes, e o custo fixo vem todo mês, mesmo que a venda não venha. Mais faturamento nem sempre vira mais caixa.',
+        aplicar: function (s) {
+          s.fixed = s.fixed.map(function (v) { return v + 2000; });
+          s.volCam = s.volCam.map(function (v) { return v * 1.1; });
+          s.volUni = s.volUni.map(function (v) { return v * 1.1; });
+        } },
+      { id: 'd', texto: 'Manter os custos fixos.',
+        porque: 'Os custos fixos continuam iguais, venda a empresa muito ou pouco. Por isso eles pesam tanto quando as entradas caem.',
+        aplicar: function () {} }
+    ]
+  },
+  // 5 ---------------------------------------------------------------
+  {
+    id: 'prazo', titulo: 'Prazo de recebimento',
+    situacao: function () {
+      return 'Alguns clientes pedem para pagar parcelado. Hoje todas as vendas são à vista: o dinheiro entra no mesmo mês da venda.';
+    },
+    pergunta: 'Qual condição de pagamento você oferece?',
+    apostila: 'Aumento do prazo de vendas e diferenças entre os prazos de recebimento e de pagamento. É o caso Dona Dulce: lucro no papel, caixa apertado.',
+    opcoes: [
+      { id: 'a', texto: 'Continuar vendendo só à vista.',
+        porque: 'O dinheiro entra no mês da venda. É menos atraente para o cliente, mas bom para o caixa, que sustenta as contas do próprio mês.',
+        aplicar: function () {} },
+      { id: 'b', texto: 'Parcelar em 3x no boleto, sem entrada, para vender 15% a mais.',
+        premissa: 'As vendas sobem 15%. A 1ª parcela entra 30 dias depois da venda, e as outras duas nos meses seguintes.',
+        porque: 'O faturamento sobe, mas o dinheiro demora a entrar, enquanto matéria-prima, comissão e custos fixos vencem agora. O lucro aparece no papel, mas o caixa aperta.',
+        aplicar: function (s) {
+          s.terms = [[0,1/3,1/3,1/3],[0,1/3,1/3,1/3],[0,1/3,1/3,1/3],[0,1/3,1/3,1/3]];
+          s.volCam = s.volCam.map(function (v) { return v * 1.15; });
+          s.volUni = s.volUni.map(function (v) { return v * 1.15; });
+        } },
+      { id: 'c', texto: 'Cobrar 1/3 de entrada e parcelar o resto em 2x (30 e 60 dias), vendendo 10% a mais.',
+        premissa: 'As vendas sobem 10%. Você recebe 1/3 no mês da venda e o restante nos dois meses seguintes.',
+        porque: 'A entrada ajuda, mas só parte do dinheiro chega no mês. Parcelar sempre empurra recebimentos para frente: veja quanto fica "a receber depois de abril".',
+        aplicar: function (s) {
+          s.terms = [[1/3,1/3,1/3,0],[1/3,1/3,1/3,0],[1/3,1/3,1/3,0],[1/3,1/3,1/3,0]];
+          s.volCam = s.volCam.map(function (v) { return v * 1.1; });
+          s.volUni = s.volUni.map(function (v) { return v * 1.1; });
+        } },
+      { id: 'd', texto: 'Parcelar no cartão e antecipar o recebimento, pagando 5% de taxa, para vender 5% a mais.',
+        premissa: 'Você recebe tudo no mês da venda, com 5% de taxa descontada, e as vendas sobem 5%.',
+        porque: 'Antecipar traz o dinheiro para o mês da venda, mas a taxa de 5% é um custo. Com apenas 5% de vendas a mais, o ganho não cobre a taxa. Só compensa se o parcelamento trouxer bem mais clientes.',
+        aplicar: function (s) {
+          s.recMult = s.recMult.map(function (v) { return v * 0.95; });
+          s.volCam = s.volCam.map(function (v) { return v * 1.05; });
+          s.volUni = s.volUni.map(function (v) { return v * 1.05; });
+        } }
+    ]
+  },
+  // 6 ---------------------------------------------------------------
+  {
+    id: 'concorrente', titulo: 'Concorrente novo',
+    evento: {
+      titulo: 'Notícia ruim: um concorrente abriu perto de você',
+      texto: 'A partir de março, um concorrente passou a vender camisetas mais baratas. As vendas de camisetas de março e abril caem 20%.',
+      aplicar: function (s) { each(s.volCam, [2,3], function (v) { return v * 0.8; }); }
+    },
+    situacao: function () {
+      return 'O caixa já sente o golpe: veja as células destacadas na tabela.';
+    },
+    pergunta: 'Como você reage?',
+    apostila: 'Fatores externos que afetam o fluxo de caixa: novos concorrentes e mudanças de mercado.',
+    opcoes: [
+      { id: 'a', texto: 'Baixar R$ 1 no preço da camiseta em março e abril.',
+        premissa: 'Você recupera parte dos clientes: a queda nas vendas diminui de 20% para 8%.',
+        porque: 'Reagir no preço pode segurar clientes, mas diminui o valor de cada venda. Vale fazer a conta: quanto o preço menor custa e quanto as vendas recuperadas trazem.',
+        aplicar: function (s) {
+          each(s.priceCam, [2,3], function (v) { return v - 1; });
+          each(s.volCam, [2,3], function (v) { return v * 1.15; });
+        } },
+      { id: 'b', texto: 'Investir R$ 1.500 por mês em divulgação em março e abril.',
+        premissa: 'A divulgação recupera metade da queda: a perda de vendas fica em 10%.',
+        porque: 'Divulgação é gasto que sai agora, e o retorno vem aos poucos. Compare o gasto com o que as vendas recuperadas rendem no mesmo período.',
+        aplicar: function (s) {
+          each(s.fixed, [2,3], function (v) { return v + 1500; });
+          each(s.volCam, [2,3], function (v) { return v * 1.125; });
+        } },
+      { id: 'c', texto: 'Ajustar a compra de matéria-prima de março e abril (10% a menos).',
+        premissa: 'Com menos vendas de camisetas, você compra 10% menos matéria-prima, sem faltar produto.',
+        porque: 'Comprar de acordo com a venda projetada evita gastar caixa com material parado. Não resolve a queda de vendas, mas diminui o estrago.',
+        aplicar: function (s) { each(s.mp, [2,3], function (v) { return v * 0.9; }); } },
+      { id: 'd', texto: 'Esperar para ver o que acontece.',
+        porque: 'Sem reação, a queda de vendas vai direto para o caixa. A hora de reagir é quando o problema aparece no fluxo projetado, não depois que o dinheiro acabou.',
+        aplicar: function () {} }
+    ]
+  },
+  // 7 ---------------------------------------------------------------
+  {
+    id: 'cliente', titulo: 'Cliente atrasou',
+    evento: {
+      titulo: 'Notícia ruim: um cliente grande atrasou o pagamento',
+      texto: 'Um cliente grande de uniformes atrasou R$ 6.000 que entrariam em março. Ele promete pagar só em maio.',
+      aplicar: function (s) { s.entradaAdj[2] -= 6000; s.receberDepois += 6000; }
+    },
+    situacao: function () {
+      return 'O dinheiro existe, mas não chega a tempo. Veja o efeito em março e abril.';
+    },
+    pergunta: 'Como você cobre esse buraco no caixa?',
+    apostila: 'Inadimplência e falta de política de concessão de crédito são fatores internos que afetam o fluxo de caixa.',
+    opcoes: [
+      { id: 'a', texto: 'Pedir um empréstimo de capital de giro de R$ 6.000.',
+        premissa: 'O dinheiro entra em março e é pago em 3 parcelas de R$ 2.200 (abril, maio e junho).',
+        porque: 'Resolve março, mas cria dívida com juros. A parcela de abril já pesa no caixa, e as outras duas ficam para depois.',
+        aplicar: function (s) { s.outrasEntradas[2] += 6000; s.outrasSaidas[3] += 2200; s.pagarDepois += 4400; } },
+      { id: 'b', texto: 'Pedir um aporte de R$ 6.000 aos sócios.',
+        premissa: 'Os sócios colocam o dinheiro em março, sem juros.',
+        porque: 'Sem juros e sem parcelas, mas o dinheiro vem do bolso dos sócios, que esperam retorno. Serve como socorro, não como rotina.',
+        aplicar: function (s) { s.outrasEntradas[2] += 6000; } },
+      { id: 'c', texto: 'Oferecer 5% de desconto para o cliente pagar agora.',
+        premissa: 'O cliente aceita e paga R$ 5.700 em março.',
+        porque: 'Você perde R$ 300, mas recebe dois meses antes e sem criar dívida. Negociar com o cliente costuma sair mais barato do que pegar dinheiro emprestado.',
+        aplicar: function (s) { s.entradaAdj[2] += 5700; s.receberDepois -= 6000; } },
+      { id: 'd', texto: 'Esperar o cliente pagar em maio.',
+        porque: 'Sem plano, março e abril ficam sem R$ 6.000 com que você contava. Ter uma política de crédito (quem pode comprar a prazo, e quanto) evita esse tipo de surpresa.',
+        aplicar: function () {} }
+    ]
+  },
+  // ---- NOVAS 8 SITUAÇÕES ----
+  // 8 ---------------------------------------------------------------
+  {
+    id: 'forn-sobe', titulo: 'Fornecedor aumentou o preço',
+    evento: {
+      titulo: 'Notícia ruim: a matéria-prima ficou 10% mais cara',
+      texto: 'O fornecedor avisou que, a partir de março, a matéria-prima custa 10% mais.',
+      aplicar: function (s) { each(s.mp, [2,3], function (v) { return Math.round(v * 1.1); }); }
+    },
+    situacao: function () { return 'O aumento já aparece nas saídas de março e abril. Veja as células destacadas.'; },
+    pergunta: 'Como você reage ao aumento?',
+    apostila: 'Fatores externos (preços de fornecedores) e negociação com fornecedores.',
+    opcoes: [
+      { id: 'a', texto: 'Repassar ao preço: subir R$ 1 no uniforme em março e abril.',
+        premissa: 'Os clientes aceitam o novo preço, mas 5% deixam de comprar uniformes.',
+        porque: 'Repassar o custo protege a margem, mas pode afastar clientes. A conta precisa considerar quanto o preço novo rende e quanto as vendas perdidas custam.',
+        aplicar: function (s) { each(s.priceUni, [2,3], function (v) { return v + 1; }); each(s.volUni, [2,3], function (v) { return v * 0.95; }); } },
+      { id: 'b', texto: 'Fazer cotação com outros três fornecedores.',
+        premissa: 'Você consegue um preço só 5% acima do antigo, em vez de 10%.',
+        porque: 'Cotar é barato e costuma reduzir o estrago. Nem sempre dá para escapar do reajuste, mas quem compara preços negocia melhor.',
+        aplicar: function (s) { each(s.mp, [2,3], function (v) { return Math.round(v * 1.05 / 1.1); }); } },
+      { id: 'c', texto: 'Comprar em fevereiro o material de março e abril, ao preço antigo.',
+        premissa: 'Você paga em fevereiro o material dos dois meses seguintes, sem o aumento.',
+        porque: 'Você escapa do reajuste, mas o dinheiro sai antes de a venda acontecer. Compra adiantada tira fôlego do caixa e cria estoque.',
+        aplicar: function (s) {
+          var o2 = Math.round(s.mp[2] / 1.1), o3 = Math.round(s.mp[3] / 1.1);
+          s.mp[1] += o2 + o3; s.mp[2] = 0; s.mp[3] = 0;
+        } },
+      { id: 'd', texto: 'Absorver o aumento e manter tudo como está.',
+        porque: 'Sem reação, o aumento do custo vai direto para o caixa em todos os meses seguintes.',
+        aplicar: function () {} }
+    ]
+  },
+  // 9 ---------------------------------------------------------------
+  {
+    id: 'imposto', titulo: 'Impostos e comissões subiram',
+    evento: {
+      titulo: 'Notícia ruim: a carga de impostos e comissões aumentou',
+      texto: 'A partir de março, comissões e impostos passam de 20% para 23% do faturamento do mês anterior.',
+      aplicar: function (s) { each(s.comRate, [2,3], function () { return 0.23; }); }
+    },
+    situacao: function () { return 'Lembre: essa despesa é calculada sobre o faturamento do mês anterior. Veja a linha "Comissões e impostos".'; },
+    pergunta: 'O que você faz?',
+    apostila: 'Fatores externos: mudanças na alíquota de impostos.',
+    opcoes: [
+      { id: 'a', texto: 'Repassar ao preço: subir R$ 1 na camiseta em março e abril.',
+        premissa: 'Os clientes aceitam, mas 3% deixam de comprar camisetas.',
+        porque: 'O reajuste de preço devolve parte do que o imposto levou, desde que os clientes aceitem.',
+        aplicar: function (s) { each(s.priceCam, [2,3], function (v) { return v + 1; }); each(s.volCam, [2,3], function (v) { return v * 0.97; }); } },
+      { id: 'b', texto: 'Pedir ao contador uma revisão do enquadramento tributário.',
+        premissa: 'O contador encontra um enquadramento que reduz a carga para 21,5%.',
+        porque: 'Revisar o enquadramento com um profissional pode reduzir a carga legalmente. Vale fazer isso periodicamente.',
+        aplicar: function (s) { each(s.comRate, [2,3], function () { return 0.215; }); } },
+      { id: 'c', texto: 'Cortar R$ 600 por mês dos custos fixos para compensar.',
+        premissa: 'O corte não afeta as vendas.',
+        porque: 'Compensar o aumento com economia interna funciona, mas depende de ainda haver o que cortar sem prejudicar a operação.',
+        aplicar: function (s) { each(s.fixed, [2,3], function (v) { return v - 600; }); } },
+      { id: 'd', texto: 'Absorver o aumento e seguir em frente.',
+        porque: 'Sem reação, o aumento da carga reduz o caixa todo mês, e fica ainda maior quando as vendas sobem.',
+        aplicar: function () {} }
+    ]
+  },
+  // 10 --------------------------------------------------------------
+  {
+    id: 'estoque', titulo: 'Estoque parado',
+    situacao: function () { return 'Na prateleira há R$ 4.000 (a preço de custo) em tecido e uniformes que não giram. Foram comprados além do que as vendas pediam.'; },
+    pergunta: 'O que você faz com o estoque parado?',
+    apostila: 'Estoques altos e de baixo giro e imobilização do capital de giro.',
+    opcoes: [
+      { id: 'a', texto: 'Liquidar com 40% de desconto em março.',
+        premissa: 'Você vende tudo em março e recebe R$ 2.400.',
+        porque: 'Você perde parte do valor, mas transforma o estoque em dinheiro rápido. É melhor do que deixar o capital parado.',
+        aplicar: function (s) { s.outrasEntradas[2] += 2400; } },
+      { id: 'b', texto: 'Usar o estoque na produção e comprar menos matéria-prima.',
+        premissa: 'R$ 4.000 do estoque entram na produção: você compra R$ 2.000 a menos em março e em abril.',
+        porque: 'Usar o que já foi pago evita novos gastos. Antes de comprar, olhe o que já tem na prateleira.',
+        aplicar: function (s) { each(s.mp, [2,3], function (v) { return Math.max(0, v - 2000); }); } },
+      { id: 'c', texto: 'Devolver ao fornecedor, aceitando multa de 15%.',
+        premissa: 'O fornecedor aceita a devolução e paga R$ 3.400 em fevereiro.',
+        porque: 'Recupera a maior parte do dinheiro, mas depende de o fornecedor aceitar. Vale perguntar antes de decidir.',
+        aplicar: function (s) { s.outrasEntradas[1] += 3400; } },
+      { id: 'd', texto: 'Manter parado e esperar vender.',
+        porque: 'O dinheiro continua preso na prateleira. Capital de giro imobilizado é caixa que você não tem para pagar contas.',
+        aplicar: function () {} }
+    ]
+  },
+  // 11 --------------------------------------------------------------
+  {
+    id: 'escola', titulo: 'Pedido grande de uma escola',
+    situacao: function () { return 'Uma escola pediu 1.000 uniformes extras para entregar em março, pelo preço de tabela. Fabricar custa R$ 2.000 de material, pagos em março. A escola quer pagar em 30 dias.'; },
+    pergunta: 'Como você responde ao pedido?',
+    apostila: 'Vender mais exige capital de giro: diferença entre prazo de recebimento e prazo de pagamento.',
+    opcoes: [
+      { id: 'a', texto: 'Aceitar e receber em 30 dias.',
+        premissa: 'A escola paga tudo em abril.',
+        porque: 'A venda é boa, mas você paga o material em março e só recebe em abril, e a comissão vem logo depois. Veja como março fica mais apertado.',
+        aplicar: function (s) { s.pedidos.push({ m: 2, qtd: 1000, preco: s.priceUni[2], terms: [0,1,0,0] }); s.mp[2] += 2000; } },
+      { id: 'b', texto: 'Aceitar, exigindo 50% de entrada e 50% em 30 dias.',
+        premissa: 'A escola aceita pagar metade na entrega.',
+        porque: 'A entrada cobre o material e alivia março. Pedir sinal em pedidos grandes protege o caixa.',
+        aplicar: function (s) { s.pedidos.push({ m: 2, qtd: 1000, preco: s.priceUni[2], terms: [0.5,0.5,0,0] }); s.mp[2] += 2000; } },
+      { id: 'c', texto: 'Aceitar só com pagamento à vista, com 5% de desconto.',
+        premissa: 'A escola aceita o desconto e paga tudo em março.',
+        porque: 'O desconto reduz o valor, mas o dinheiro entra no mesmo mês em que você gasta. Para o caixa, pagar rápido vale mais que um preço alto.',
+        aplicar: function (s) { s.pedidos.push({ m: 2, qtd: 1000, preco: s.priceUni[2] * 0.95, terms: [1,0,0,0] }); s.mp[2] += 2000; } },
+      { id: 'd', texto: 'Recusar o pedido.',
+        porque: 'Você evita o risco para o caixa, mas abre mão de uma venda grande. Recusar é uma decisão com custo, assim como aceitar.',
+        aplicar: function () {} }
+    ]
+  },
+  // 12 --------------------------------------------------------------
+  {
+    id: 'maquina', titulo: 'A máquina de costura quebrou',
+    evento: {
+      titulo: 'Imprevisto: a máquina principal quebrou em março',
+      texto: 'O conserto custa R$ 3.000 e a produção atrasa: as vendas de março caem 5%.',
+      aplicar: function (s) { s.volCam[2] *= 0.95; s.volUni[2] *= 0.95; }
+    },
+    situacao: function () { return 'Imprevistos como esse mostram o valor de ter uma reserva de caixa. Como pagar o conserto?'; },
+    pergunta: 'Qual solução você escolhe?',
+    apostila: 'Fluxo de caixa como ferramenta de planejamento: providenciar ações que cubram faltas de caixa.',
+    opcoes: [
+      { id: 'a', texto: 'Pagar o conserto de R$ 3.000 em março, do caixa.',
+        porque: 'Resolve de uma vez e evita juros, mas tira R$ 3.000 do caixa justamente em março.',
+        aplicar: function (s) { s.outrasSaidas[2] += 3000; } },
+      { id: 'b', texto: 'Parcelar o conserto em 3x no cartão (R$ 1.100 por mês, com juros).',
+        premissa: 'Parcelas em março, abril e maio.',
+        porque: 'Alivia março, mas paga mais caro (R$ 3.300 no total) e deixa uma parcela para depois de abril.',
+        aplicar: function (s) { each(s.outrasSaidas, [2,3], function (v) { return v + 1100; }); s.pagarDepois += 1100; } },
+      { id: 'c', texto: 'Terceirizar parte da costura em março (R$ 1.800) e consertar só em maio.',
+        premissa: 'A terceirização evita a queda de vendas de março. O conserto de R$ 3.000 fica para maio.',
+        porque: 'Mantém as vendas, mas empurra o conserto para depois: o problema só mudou de data.',
+        aplicar: function (s) { s.outrasSaidas[2] += 1800; s.volCam[2] /= 0.95; s.volUni[2] /= 0.95; s.pagarDepois += 3000; } },
+      { id: 'd', texto: 'Esperar juntar caixa e consertar só em maio.',
+        premissa: 'Com a máquina parada, as vendas de março e abril caem 15% no total.',
+        porque: 'Você segura o dinheiro, mas perde produção e vendas. Adiar um conserto essencial costuma sair mais caro.',
+        aplicar: function (s) { s.volCam[2] *= 0.85 / 0.95; s.volUni[2] *= 0.85 / 0.95; s.volCam[3] *= 0.85; s.volUni[3] *= 0.85; s.pagarDepois += 3000; } }
+    ]
+  },
+  // 13 --------------------------------------------------------------
+  {
+    id: 'prolabore', titulo: 'Pró-labore da Dona Maria',
+    situacao: function (cal) {
+      return 'O pró-labore de Dona Maria (R$ 3.500 por mês) já está dentro dos custos fixos. Pela projeção, o caixa termina abril em ' + brl(cal.saldoAbril) + ', e ela pensa em aumentar a retirada.';
+    },
+    pergunta: 'O que você recomenda?',
+    apostila: 'Pró-labore incompatível com a geração de caixa é um fator interno que afeta o fluxo de caixa.',
+    opcoes: [
+      { id: 'a', texto: 'Subir para R$ 5.500 a partir de março (R$ 2.000 a mais por mês).',
+        porque: 'Um aumento grande vira custo fixo, e custo fixo vem todo mês, tenha o caixa folga ou não. Ele só combina com vendas que sustentem.',
+        aplicar: function (s) { each(s.fixed, [2,3], function (v) { return v + 2000; }); } },
+      { id: 'b', texto: 'Subir só R$ 500 e rever quando o caixa estabilizar.',
+        porque: 'Um ajuste pequeno pesa menos e deixa espaço para revisar. Ajustes graduais evitam sustos no caixa.',
+        aplicar: function (s) { each(s.fixed, [2,3], function (v) { return v + 500; }); } },
+      { id: 'c', texto: 'Manter o pró-labore em R$ 3.500.',
+        porque: 'O pró-labore deve caber no que a empresa gera de caixa. Aumentar quando o resultado se confirmar costuma ser mais seguro.',
+        aplicar: function () {} }
+    ]
+  },
+  // 14 --------------------------------------------------------------
+  {
+    id: 'recessao', titulo: 'Economia desacelerou',
+    evento: {
+      titulo: 'Notícia ruim: a economia desacelerou',
+      texto: 'As vendas de abril caem 10% nos dois produtos por causa do menor consumo na região.',
+      aplicar: function (s) { s.volCam[3] *= 0.9; s.volUni[3] *= 0.9; }
+    },
+    situacao: function () { return 'A queda aparece só em abril, mas já é visível na tabela.'; },
+    pergunta: 'O que você faz para proteger o caixa de abril?',
+    apostila: 'Fatores externos: recessão da economia, e outras entradas de caixa, como a venda de imobilizado.',
+    opcoes: [
+      { id: 'a', texto: 'Fazer uma campanha de fidelização (R$ 1.000 em abril).',
+        premissa: 'A campanha recupera metade da queda: as vendas de abril caem 5% em vez de 10%.',
+        porque: 'Campanha é gasto agora, com retorno incerto. Compare o custo com o que as vendas recuperadas rendem.',
+        aplicar: function (s) { s.fixed[3] += 1000; s.volCam[3] *= 1.05 / 0.9; s.volUni[3] *= 1.05 / 0.9; } },
+      { id: 'b', texto: 'Vender uma máquina antiga que está parada por R$ 3.000.',
+        premissa: 'A máquina não é usada na produção, e a venda acontece em abril.',
+        porque: 'Vender um bem sem uso (imobilizado) é uma entrada de caixa que não depende de vendas. Só vale para bens realmente parados.',
+        aplicar: function (s) { s.outrasEntradas[3] += 3000; } },
+      { id: 'c', texto: 'Reduzir a compra de matéria-prima de abril em 10%.',
+        premissa: 'Com vendas menores, você compra menos sem faltar produto.',
+        porque: 'Comprar de acordo com a venda projetada evita gastar caixa com material que vai ficar parado.',
+        aplicar: function (s) { s.mp[3] = Math.round(s.mp[3] * 0.9); } },
+      { id: 'd', texto: 'Esperar a economia melhorar.',
+        porque: 'A queda vai direto para o caixa de abril. Quanto antes você reage, mais opções existem.',
+        aplicar: function () {} }
+    ]
+  },
+  // 15 --------------------------------------------------------------
+  {
+    id: 'inadimplencia', titulo: 'Clientes que não pagam',
+    evento: {
+      titulo: 'Notícia ruim: aumentou a inadimplência',
+      texto: 'Clientes que compraram no carnê pararam de pagar: 5% das vendas de março e abril não serão recebidos.',
+      aplicar: function (s) { each(s.recMult, [2,3], function (v) { return v * 0.95; }); }
+    },
+    situacao: function () { return 'Esse dinheiro já foi vendido, mas nunca vai chegar ao caixa. Olhe as entradas de março e abril.'; },
+    pergunta: 'Qual é a sua resposta?',
+    apostila: 'Inadimplência e falta de política de concessão de crédito.',
+    opcoes: [
+      { id: 'a', texto: 'Criar uma política de crédito: consultar o CPF e limitar o parcelamento.',
+        premissa: 'A inadimplência cai para 2%, mas 3% dos clientes desistem de comprar.',
+        porque: 'Uma política de crédito reduz o risco de não receber, mesmo perdendo algumas vendas. Vender sem conferir quem compra sai caro.',
+        aplicar: function (s) {
+          each(s.recMult, [2,3], function (v) { return v * 0.98 / 0.95; });
+          each(s.volCam, [2,3], function (v) { return v * 0.97; });
+          each(s.volUni, [2,3], function (v) { return v * 0.97; });
+        } },
+      { id: 'b', texto: 'Contratar uma empresa de cobrança (10% do valor recuperado).',
+        premissa: 'A empresa recupera metade do que está atrasado e cobra 10% do que recuperar.',
+        porque: 'Recupera parte do dinheiro sem criar trabalho interno, mas custa uma parte do que volta. Ajuda a resolver o passado, mas não evita novos atrasos.',
+        aplicar: function (s) { each(s.recMult, [2,3], function (v) { return v * (0.95 + 0.025 * 0.9) / 0.95; }); } },
+      { id: 'c', texto: 'Aceitar a perda e seguir vendendo como antes.',
+        porque: 'A perda se repete a cada mês. Sem política de crédito, o risco de não receber continua.',
+        aplicar: function () {} }
+    ]
+  },
+  // Final -----------------------------------------------------------
+  {
+    id: 'retirada', titulo: 'Retirada dos sócios',
+    situacao: function (cal) {
+      return 'No fim de fevereiro o caixa está em ' + brl(cal.meses[1].fim) + '. Os sócios querem retirar R$ 8.000 como lucro.';
+    },
+    pergunta: 'O que você decide?',
+    apostila: 'Distribuição de lucros acima da capacidade de geração de caixa afeta o fluxo de caixa.',
+    opcoes: [
+      { id: 'a', texto: 'Retirar R$ 8.000 em fevereiro.',
+        porque: 'Ter saldo no caixa não significa ter lucro disponível: março e abril ainda têm entradas menores e saídas altas. Veja o menor saldo do período.',
+        aplicar: function (s) { s.outrasSaidas[1] += 8000; } },
+      { id: 'b', texto: 'Retirar R$ 3.000 em fevereiro.',
+        porque: 'Uma retirada menor deixa mais folga, mas ainda tira dinheiro antes dos meses mais difíceis. Olhe o menor saldo do período.',
+        aplicar: function (s) { s.outrasSaidas[1] += 3000; } },
+      { id: 'c', texto: 'Não retirar agora e rever a distribuição depois de abril.',
+        porque: 'Guardar o dinheiro até o fim do período dá folga para imprevistos. Retirada de lucro combina com fluxo projetado, não com saldo do dia.',
+        aplicar: function () {} }
+    ]
+  }
+];
+
+function escolher(round, opId, estado) {
+  var s = clone(estado);
+  var op = round.opcoes.filter(function (o) { return o.id === opId; })[0];
+  if (op && op.aplicar) op.aplicar(s);
+  return s;
+}
+
+// ===== TELA: monta o painel, o gráfico, a tabela e as perguntas =====
+(function () {
+  var BASE = baseState(), BASEC = compute(BASE);
+  var app = { screen: 'intro', i: 0, chosen: null, states: [], prev: [], picks: [], finalState: null };
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function fmt(v) { return Math.abs(Math.round(v)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',00'; }
+  function fmtT(v) { return v < 0 ? '(' + fmt(v) + ')' : fmt(v); }
+  function short(v) { var a = Math.abs(Math.round(v)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.'); return (v < 0 ? '−' : '') + a; }
+  function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function pct(arr) { var mn = Math.min.apply(null, arr), mx = Math.max.apply(null, arr); var f = function (v) { return (Math.round(v * 1000) / 10).toString().replace('.', ','); }; return mn === mx ? f(mn) + '%' : f(mn) + '% a ' + f(mx) + '%'; }
+  function mesLow(i) { return MESES[i].toLowerCase(); }
+
+  // ---------- fluxo de estados ----------
+  function enterRound(i, prevState) {
+    app.prev[i] = prevState;
+    var s = clone(prevState), r = ROUNDS[i];
+    if (r.evento) r.evento.aplicar(s);
+    app.states[i] = s; app.i = i; app.chosen = null; app.screen = 'round';
+  }
+  function resetAll() {
+    app = { screen: 'intro', i: 0, chosen: null, states: [], prev: [], picks: [], finalState: null };
+    enterRound(0, clone(BASE)); app.screen = 'intro';
+  }
+  function afterChoice(i, opId) { return escolher(ROUNDS[i], opId, app.states[i]); }
+  function display() {
+    if (app.screen === 'final') return app.finalState;
+    if (app.screen === 'intro') return app.states[0];
+    return app.chosen ? afterChoice(app.i, app.chosen) : app.states[app.i];
+  }
+  function reference() {
+    if (app.screen === 'final' || app.screen === 'intro') return display();
+    return app.chosen ? app.states[app.i] : app.prev[app.i];
+  }
+
+  function verdict(b, a) {
+    var dA = a.saldoAbril - b.saldoAbril, dM = a.menor - b.menor;
+    if (a.negativos > b.negativos) return { k: 'bad', t: 'Piora o caixa: mais meses no vermelho' };
+    if (a.negativos < b.negativos) return { k: 'good', t: 'Melhora o caixa: menos meses no vermelho' };
+    if (Math.abs(dA) < 1 && Math.abs(dM) < 1) return { k: 'neutral', t: 'Não muda o caixa' };
+    if (dA > 0 && dM >= 0) return { k: 'good', t: 'Melhora o caixa' };
+    if (dA <= 0 && dM <= 0) return { k: 'bad', t: 'Piora o caixa' };
+    return { k: 'mixed', t: 'Resultado misto: veja os números' };
+  }
+
+  // ---------- painel + gráfico ----------
+  function chartSVG(cur) {
+    var W = 560, H = 270, L = 12, R = 12, T = 30, B = 40, pw = W - L - R, ph = H - T - B;
+    var vals = cur.meses.map(function (m) { return m.fim; }), orig = BASEC.meses.map(function (m) { return m.fim; });
+    var all = vals.concat(orig).concat([0]);
+    var mx = Math.max.apply(null, all), mn = Math.min.apply(null, all), pad = (mx - mn) * 0.12 || 1000;
+    mx += pad; if (mn < 0) mn -= pad;
+    function y(v) { return T + (mx - v) / (mx - mn) * ph; }
+    var slot = pw / 4, bw = Math.min(70, slot * 0.55), out = '', y0 = y(0);
+    for (var m = 0; m < 4; m++) {
+      var cx = L + slot * m + slot / 2, v = vals[m], top = y(Math.max(v, 0)), hgt = Math.max(Math.abs(y(v) - y0), 1.5);
+      out += '<g class="bar" style="transform-origin:' + cx + 'px ' + y0 + 'px"><rect class="' + (v < 0 ? 'bneg' : 'bpos') + '" x="' + (cx - bw / 2) + '" y="' + top + '" width="' + bw + '" height="' + hgt + '" rx="4"/></g>';
+      var o = orig[m], ot = y(Math.max(o, 0)), oh = Math.max(Math.abs(y(o) - y0), 1.5);
+      out += '<rect class="ghost" x="' + (cx - bw / 2 - 5) + '" y="' + ot + '" width="' + (bw + 10) + '" height="' + oh + '" rx="5"/>';
+      var ly = v >= 0 ? top - 7 : y(v) + 17;
+      out += '<text class="val' + (v < 0 ? ' n' : '') + '" x="' + cx + '" y="' + ly + '">' + short(v) + '</text>';
+      out += '<text class="mes" x="' + cx + '" y="' + (H - 12) + '">' + MESES[m] + '</text>';
+    }
+    out += '<line class="zero" x1="' + L + '" x2="' + (W - R) + '" y1="' + y0 + '" y2="' + y0 + '"/>';
+    return '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Saldo final de caixa de janeiro a abril: ' +
+      vals.map(function (v, i) { return MESES[i] + ' ' + short(v) + ' reais'; }).join(', ') + '">' + out + '</svg>';
+  }
+  function renderPanel(cur) {
+    var ab = cur.saldoAbril, neg = [];
+    cur.meses.forEach(function (m, i) { if (m.fim < 0) neg.push(MESES[i]); });
+    var st = neg.length === 0
+      ? '<div class="status ok">✔ Caixa positivo nos 4 meses</div>'
+      : '<div class="status no">⚠ Caixa negativo em: ' + neg.join(', ') + '</div>';
+    var av = '';
+    if (cur.pagarDepois > 0) av += '<div class="aviso"><b>A pagar depois de abril: ' + brl(cur.pagarDepois) + '.</b> Contas já assumidas que vencem a partir de maio e não aparecem na tabela.</div>';
+    if (cur.receberDepois > 0) av += '<div class="aviso"><b>A receber depois de abril: ' + brl(cur.receberDepois) + '.</b> Vendas já feitas cujo dinheiro só entra a partir de maio.</div>';
+    return '<div class="kpis">' +
+      '<div class="kpi"><div class="k">Saldo final de abril</div><div class="v ' + (ab < 0 ? 'neg' : 'pos') + '">' + brl(ab) + '</div><div class="s">Caso original: ' + brl(BASEC.saldoAbril) + '</div></div>' +
+      '<div class="kpi"><div class="k">Menor saldo do período</div><div class="v ' + (cur.menor < 0 ? 'neg' : 'pos') + '">' + brl(cur.menor) + '</div><div class="s">em ' + mesLow(cur.menorMes) + '</div></div>' +
+      '</div>' + st + chartSVG(cur) +
+      '<div class="legend"><span><i class="l1"></i>Saldo final do mês</span><span><i class="l2"></i>Caso original</span></div>' +
+      (av ? '<div class="avisos">' + av + '</div>' : '');
+  }
+
+  // ---------- tabela ----------
+  function priceText(arr) {
+    var mn = Math.min.apply(null, arr), mx = Math.max.apply(null, arr);
+    return mn === mx ? 'R$ ' + fmt(mn) : 'R$ ' + short(mn) + ' a ' + short(mx);
+  }
+  function renderTable(cur, ref, s) {
+    var rows = [
+      { sec: 'Projeção de vendas' },
+      { l: 'Camisetas (quantidade)', k: 'qCam', q: 1, p: priceText(s.priceCam) },
+      { l: 'Uniformes (quantidade)', k: 'qUni', q: 1, p: priceText(s.priceUni) },
+      { l: 'Faturamento', k: 'fat' },
+      { sec: 'Fluxo de caixa' },
+      { l: 'Camisetas', k: 'recCam' },
+      { l: 'Uniformes', k: 'recUni' },
+      { l: 'Atrasos e descontos de clientes', k: 'adj', opt: 1 },
+      { l: 'Outras entradas', k: 'outEnt', opt: 1 },
+      { l: 'I - Total das entradas', k: 'totalEnt', tot: 1 },
+      { l: 'Pagamento de matéria-prima', k: 'mp' },
+      { l: 'Comissões e impostos', k: 'com', p: pct(s.comRate) },
+      { l: 'Custos fixos', k: 'fixo' },
+      { l: 'Outras saídas', k: 'outSai', opt: 1 },
+      { l: 'II - Total das saídas', k: 'totalSai', tot: 1 },
+      { l: 'III - Entradas − saídas', k: 'liquido', tot: 1 },
+      { l: 'IV - Saldo anterior de caixa', k: 'ini', tot: 1 },
+      { l: 'V - Saldo final de caixa', k: 'fim', tot: 1, fim: 1 }
+    ];
+    var h = '<table class="fluxo"><thead><tr><th>Valores em reais</th><th>Valor (R$)</th>' + MESES.map(function (m) { return '<th>' + m + '</th>'; }).join('') + '</tr></thead><tbody>';
+    rows.forEach(function (r) {
+      if (r.sec) { h += '<tr class="sec"><th colspan="6">' + r.sec + '</th></tr>'; return; }
+      if (r.opt) {
+        var any = cur.meses.some(function (m) { return m[r.k] !== 0; }) || ref.meses.some(function (m) { return m[r.k] !== 0; });
+        if (!any) return;
+      }
+      h += '<tr class="' + (r.tot ? 'tot ' : '') + (r.fim ? 'fim' : '') + '"><td>' + r.l + '</td><td class="num hl">' + (r.p || '') + '</td>';
+      cur.meses.forEach(function (m, i) {
+        var v = m[r.k], ch = v !== ref.meses[i][r.k];
+        h += '<td class="num' + (v < 0 ? ' neg' : '') + (ch ? ' chg' : '') + '">' + (r.q ? Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : (r.opt && v === 0 ? '–' : fmtT(v))) + '</td>';
+      });
+      h += '</tr>';
+    });
+    return '<h3>Fluxo de caixa mês a mês</h3><div class="tablewrap" tabindex="0" role="region" aria-label="Tabela de fluxo de caixa">' + h + '</tbody></table></div>' +
+      '<p class="nota"><span class="sw"></span>Células em amarelo mudaram por causa da última notícia ou decisão. Números negativos aparecem entre parênteses. A comissão de cada mês é calculada sobre o faturamento do mês anterior. "Outras entradas" reúne empréstimos, aportes e vendas extras; "Outras saídas" reúne retiradas dos sócios, parcelas e consertos.</p>';
+  }
+
+  // ---------- cartão ----------
+  function stepsHTML(i) {
+    var h = '<div class="steps" aria-hidden="true">';
+    ROUNDS.forEach(function (r, k) { h += '<span class="' + (k < i ? 'done' : k === i ? 'now' : '') + '"></span>'; });
+    return h + '</div>';
+  }
+  function introHTML() {
+    return '<h2 tabindex="-1" id="foco">O caixa da Dona Maria fecha abril no vermelho</h2>' +
+      '<p class="sit">Dona Maria tem uma pequena confecção. Ela vende camisetas por R$ 15 e uniformes por R$ 5, e começou janeiro com R$ 5.000 no caixa. A tabela abaixo mostra a projeção dos próximos quatro meses: o saldo cresce no começo, mas abril termina com −R$ 900.</p>' +
+      '<p class="sit">Você vai ajudá-la em ' + ROUNDS.length + ' situações. Em cada uma, escolha uma opção e veja na hora como o fluxo de caixa muda. Pode trocar de escolha para comparar ou voltar para a situação anterior. O objetivo é fechar todos os meses com o caixa positivo.</p>' +
+      '<div class="btnrow"><button class="btn" data-act="start">Começar</button></div>';
+  }
+  function roundHTML() {
+    var i = app.i, r = ROUNDS[i], st = app.states[i], c0 = compute(st), diag = r.tipo === 'diagnostico';
+    var h = '<div class="topbar"><button class="back" data-act="back">‹ Voltar</button></div>' + stepsHTML(i) + '<p class="lead">Situação ' + (i + 1) + ' de ' + ROUNDS.length + '</p><h2 tabindex="-1" id="foco">' + esc(r.titulo) + '</h2>';
+    if (r.evento) h += '<div class="evento"><b>' + esc(r.evento.titulo) + '</b>' + esc(r.evento.texto) + '</div>';
+    h += '<p class="sit">' + esc(r.situacao(c0)) + '</p><p class="q">' + esc(r.pergunta) + '</p><div class="opts">';
+    r.opcoes.forEach(function (o) {
+      h += '<button class="opt" data-act="choose" data-v="' + o.id + '" aria-pressed="' + (app.chosen === o.id) + '"><span class="t">' + esc(o.texto) + '</span></button>';
+    });
+    h += '</div><div id="res" aria-live="polite">';
+    if (app.chosen) {
+      var o = r.opcoes.filter(function (x) { return x.id === app.chosen; })[0];
+      h += '<div class="resultado">';
+      if (diag) {
+        h += '<span class="chip ' + (o.certa ? 'good' : 'bad') + '">' + (o.certa ? 'Essa é a causa principal' : 'Não é a causa principal') + '</span>';
+      } else {
+        var c1 = compute(afterChoice(i, app.chosen)), v = verdict(c0, c1);
+        h += '<span class="chip ' + v.k + '">' + v.t + '</span><div class="nums">' +
+          '<div>Saldo final de abril: ' + brl(c0.saldoAbril) + ' → <b class="' + (c1.saldoAbril < 0 ? 'neg' : 'pos') + '">' + brl(c1.saldoAbril) + '</b></div>' +
+          '<div>Menor saldo do período: ' + brl(c0.menor) + ' → <b class="' + (c1.menor < 0 ? 'neg' : 'pos') + '">' + brl(c1.menor) + '</b> (' + mesLow(c1.menorMes) + ')</div></div>';
+        if (o.premissa) h += '<p class="premissa"><b>Premissa desta simulação:</b> ' + esc(o.premissa) + '</p>';
+      }
+      h += '<p class="porque">' + esc(o.porque) + '</p>';
+      if (r.apostila) h += '<p class="apostila"><b>Na apostila:</b> ' + esc(r.apostila) + '</p>';
+      h += '<div class="btnrow"><button class="btn" data-act="next">' + (i === ROUNDS.length - 1 ? 'Ver o resultado final' : 'Próxima situação') + '</button></div></div>';
+    }
+    return h + '</div>';
+  }
+  function finalHTML() {
+    var fc = compute(app.finalState), neg = [], decs = '', best = null, worst = null;
+    fc.meses.forEach(function (m, i) { if (m.fim < 0) neg.push(MESES[i]); });
+    ROUNDS.forEach(function (r, i) {
+      if (r.tipo === 'diagnostico') return;
+      var o = r.opcoes.filter(function (x) { return x.id === app.picks[i]; })[0];
+      var c0 = compute(app.states[i]), c1 = compute(escolher(r, app.picks[i], app.states[i])), v = verdict(c0, c1), d = c1.saldoAbril - c0.saldoAbril;
+      if (Math.abs(d) >= 1) { if (!best || d > best.d) best = { d: d, t: r.titulo }; if (!worst || d < worst.d) worst = { d: d, t: r.titulo }; }
+      decs += '<div class="dec"><div class="tt">' + esc(r.titulo) + '</div><div class="dd ' + (d < 0 ? 'neg' : d > 0 ? 'pos' : '') + '">' + (d > 0 ? '+' : '') + brl(d) + '</div>' +
+        '<div class="oo">' + esc(o.texto) + '</div><div class="gg"><button data-act="goto" data-v="' + i + '">Refazer esta decisão</button></div></div>';
+    });
+    var h = '<div class="topbar"><button class="back" data-act="back">‹ Voltar</button></div><h2 tabindex="-1" id="foco">Resultado final</h2>';
+    h += neg.length === 0
+      ? '<p class="big"><b class="pos">Parabéns! O caixa fechou os quatro meses no azul.</b> Abril passou de ' + brl(BASEC.saldoAbril) + ' para ' + brl(fc.saldoAbril) + ', e o menor saldo do período foi ' + brl(fc.menor) + ' (' + mesLow(fc.menorMes) + ').</p>'
+      : '<p class="big"><b class="neg">Ainda há meses no vermelho: ' + neg.join(', ') + '.</b> O menor saldo foi ' + brl(fc.menor) + ' (' + mesLow(fc.menorMes) + '). Veja quais decisões pesaram contra e refaça algumas delas.</p>';
+    h += '<p class="lead">Efeito de cada decisão no saldo final de abril (no momento em que foi tomada):</p><div class="decs">' + decs + '</div>';
+    if (best && best.d > 0) h += '<p class="sit">Decisão que mais ajudou: <b>' + esc(best.t) + '</b>.</p>';
+    if (worst && worst.d < 0) h += '<p class="sit">Decisão que mais pesou contra: <b>' + esc(worst.t) + '</b>.</p>';
+    h += '<p class="q">O que levar desta simulação</p><ul class="licoes">' +
+      '<li>Analise as causas do saldo antes de agir: a falta de dinheiro é a febre, não a doença.</li>' +
+      '<li>Vender mais não é o mesmo que ter mais caixa. O que importa é quando o dinheiro entra e quando a conta vence.</li>' +
+      '<li>Olhe o menor saldo do período, não só o saldo final. Um mês no vermelho no meio do caminho já é problema.</li>' +
+      '<li>Prazo e financiamento empurram o problema para frente: confira os avisos de "depois de abril".</li>' +
+      '<li>Tenha uma reserva para imprevistos: um conserto, um atraso ou uma alta de custo pode abrir um buraco no caixa.</li></ul>' +
+      '<div class="btnrow"><button class="btn" data-act="restart">Recomeçar a simulação</button></div>';
+    return h;
+  }
+
+  // ---------- desenho ----------
+  function render(focusSel) {
+    var cur = compute(display()), ref = compute(reference()), s = display();
+    document.getElementById('painel').innerHTML = renderPanel(cur);
+    document.getElementById('tabela').innerHTML = renderTable(cur, ref, s);
+    document.getElementById('card').innerHTML = app.screen === 'intro' ? introHTML() : app.screen === 'final' ? '<div class="final">' + finalHTML() + '</div>' : roundHTML();
+    if (focusSel) { var el = document.querySelector(focusSel); if (el) el.focus({ preventScroll: true }); }
+  }
+  function toTop() {
+    var f = document.getElementById('foco'), c = document.getElementById('card');
+    if (c) c.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    if (f) f.focus({ preventScroll: true });
+  }
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]'); if (!b) return;
+    var act = b.getAttribute('data-act'), v = b.getAttribute('data-v');
+    if (act === 'start') { app.screen = 'round'; render(); toTop(); }
+    else if (act === 'choose') {
+      app.chosen = v; render('.opt[data-v="' + v + '"]');
+      var res = document.getElementById('res');
+      if (res && res.firstChild) res.firstChild.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' });
+    }
+    else if (act === 'next') {
+      app.picks[app.i] = app.chosen;
+      var ns = afterChoice(app.i, app.chosen);
+      if (app.i + 1 < ROUNDS.length) { enterRound(app.i + 1, ns); }
+      else { app.finalState = ns; app.screen = 'final'; }
+      render(); toTop();
+    }
+    else if (act === 'back') {
+      var kb;
+      if (app.screen === 'final') { kb = ROUNDS.length - 1; app.chosen = app.picks[kb]; app.picks.length = kb; app.i = kb; app.finalState = null; app.screen = 'round'; }
+      else if (app.i === 0) { app.chosen = null; app.screen = 'intro'; }
+      else { kb = app.i - 1; app.chosen = app.picks[kb]; app.picks.length = kb; app.i = kb; }
+      render(); toTop();
+    }
+    else if (act === 'goto') { var k = parseInt(v, 10); app.picks.length = k; app.i = k; app.chosen = null; app.screen = 'round'; render(); toTop(); }
+    else if (act === 'restart') { resetAll(); render(); toTop(); }
+  });
+
+  resetAll(); render();
+})();
+
+</script>
+</body>
+</html>
